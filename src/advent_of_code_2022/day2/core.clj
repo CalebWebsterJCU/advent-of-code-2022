@@ -1,25 +1,25 @@
 (ns advent-of-code-2022.day2.core
   (:require [clojure.string :as str]))
 
-(defn get-weapon-needed-to-achieve-result [opponents-weapon result]
+(defn get-choice-needed-to-achieve-result [opponents-choice result]
   (if (= :draw result)
-    opponents-weapon
-    (case opponents-weapon
+    opponents-choice
+    (case opponents-choice
       "rock" (if (= :win result) "paper" "scissors")
       "paper" (if (= :win result) "scissors" "rock")
       "scissors" (if (= :win result) "rock" "paper")
       )))
 
-(defn get-result-given-both-weapons [opponents-weapon your-weapon]
-  (if (= opponents-weapon your-weapon)
+(defn get-result-given-both-choices [opponents-choice your-choice]
+  (if (= opponents-choice your-choice)
     :draw
-    (case opponents-weapon
-      "rock" (if (= your-weapon "paper") :win :lose)
-      "paper" (if (= your-weapon "scissors") :win :lose)
-      "scissors" (if (= your-weapon "rock") :win :lose)
+    (case opponents-choice
+      "rock" (if (= your-choice "paper") :win :lose)
+      "paper" (if (= your-choice "scissors") :win :lose)
+      "scissors" (if (= your-choice "rock") :win :lose)
       )))
 
-(def letter-to-weapon {
+(def letter-to-choice {
                        "A" "rock"
                        "B" "paper"
                        "C" "scissors"
@@ -34,44 +34,58 @@
                        "Z" :win
                        })
 
-(def weapon-scores {
-                    "rock"     1
-                    "paper"    2
-                    "scissors" 3
-                    })
+(def get-score-for-choice {
+                           "rock"     1
+                           "paper"    2
+                           "scissors" 3
+                           })
 
-(def result-scores {
-                    :win  6
-                    :lose 0
-                    :draw 3
-                    })
+(def get-score-for-result {
+                           :win  6
+                           :lose 0
+                           :draw 3
+                           })
 
-(defn split-by-space [string] (str/split string #" "))
+(defn parse-round [round-string] (str/split round-string #" "))
 
-(defn parse-input [test-input]
-  (map split-by-space (str/split-lines test-input))
+(defn split-into-rounds [puzzle-input] (str/split-lines puzzle-input))
+
+(defn parse-all-rounds [puzzle-input]
+  (map parse-round (split-into-rounds puzzle-input))
   )
 
-(defn calc-round-score [your-weapon result]
-  (+ (get weapon-scores your-weapon) (get result-scores result))
+(defprotocol Strategy
+  (calc-round-score [this round])
   )
 
-(defn get-round-score-for-part-1 [[letter1 letter2]]
-  (let [opponents-choice (get letter-to-weapon letter1)
-        your-choice (get letter-to-weapon letter2)
-        result (get-result-given-both-weapons opponents-choice your-choice)]
-    (calc-round-score your-choice result)
-    ))
+(defrecord FirstStrategy []
+  Strategy
+  (calc-round-score [this round]
+    (let [opponents-choice (letter-to-choice (get round 0))
+          your-choice (letter-to-choice (get round 1))
+          result (get-result-given-both-choices opponents-choice your-choice)]
+      (+ (get-score-for-choice your-choice) (get-score-for-result result))
+      ))
+  )
 
-(defn get-round-score-for-part-2 [[letter1 letter2]]
-  (let [opponents-weapon (get letter-to-weapon letter1)
-        desired-result (get letter-to-result letter2)
-        your-weapon (get-weapon-needed-to-achieve-result opponents-weapon desired-result)]
-    (calc-round-score your-weapon desired-result)
-    ))
+(defrecord SecondStrategy []
+  Strategy
+  (calc-round-score [this round]
+    (let [opponents-choice (letter-to-choice (get round 0))
+          desired-result (letter-to-result (get round 1))
+          recommended-choice (get-choice-needed-to-achieve-result opponents-choice desired-result)]
+      (+ (get-score-for-choice recommended-choice) (get-score-for-result desired-result))
+      ))
+  )
 
-(defn solve-part-1 [input-str]
-  (apply + (map get-round-score-for-part-1 (parse-input input-str))))
+(defn calc-round-scores-using-strategy [strategy rounds]
+  (map #(calc-round-score strategy %) rounds)
+  )
 
-(defn solve-part-2 [input-str]
-  (apply + (map get-round-score-for-part-2 (parse-input input-str))))
+(defn solve-part-1 [puzzle-input]
+  (apply + (calc-round-scores-using-strategy (FirstStrategy.) (parse-all-rounds puzzle-input)))
+  )
+
+(defn solve-part-2 [puzzle-input]
+  (apply + (calc-round-scores-using-strategy (SecondStrategy.) (parse-all-rounds puzzle-input)))
+  )
